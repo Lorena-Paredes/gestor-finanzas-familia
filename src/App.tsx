@@ -52,8 +52,26 @@ import {
   Share2,
   FileSpreadsheet,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Cloud,
+  CloudUpload
 } from 'lucide-react';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+
+// --- FIREBASE FIRESTORE REAL-TIME DB CONFIGURATION ---
+const firebaseConfig = {
+  apiKey: "AIzaSyChdYn6sGC8fJzeLXMGZftfcfSIrQD_cRo",
+  authDomain: "finanzas-familia-lorena.firebaseapp.com",
+  projectId: "finanzas-familia-lorena",
+  storageBucket: "finanzas-familia-lorena.firebasestorage.app",
+  messagingSenderId: "248410523177",
+  appId: "1:248410523177:web:b52479ccccdb822501fe38",
+  measurementId: "G-05SGZW3ENL"
+};
+
+const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+export const db = getFirestore(firebaseApp);
 
 // --- FORMATTERS & UTILS ---
 const formatARS = (amount: number | null | undefined): string => {
@@ -635,6 +653,105 @@ function MainApp() {
     const found = AVAILABLE_MONTHS.find(m => m.key === selectedMonth);
     return found ? found.label : selectedMonth;
   }, [selectedMonth]);
+
+  // --- REAL-TIME FIRESTORE SYNCHRONIZATION & SEEDING ---
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'synced' | 'syncing' | 'offline' | 'error'>('syncing');
+  const [lastCloudSyncTime, setLastCloudSyncTime] = useState<string>('');
+  const isRemoteSyncRef = useRef<boolean>(false);
+  const isInitialCloudLoadDoneRef = useRef<boolean>(false);
+
+  // 1. Listen and Subscribe to Firestore in Real-Time for the selected month
+  useEffect(() => {
+    setCloudSyncStatus('syncing');
+    const docRef = doc(db, 'movimientos_financieros', selectedMonth);
+
+    const unsubscribe = onSnapshot(
+      docRef,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const data = snapshot.data();
+          isRemoteSyncRef.current = true;
+
+          if (Array.isArray(data.bills) && data.bills.length > 0) setBills(data.bills);
+          if (Array.isArray(data.transactions) && data.transactions.length > 0) setTransactions(data.transactions);
+          if (Array.isArray(data.accounts) && data.accounts.length > 0) setAccounts(data.accounts);
+          if (Array.isArray(data.mamaAccounts) && data.mamaAccounts.length > 0) setMamaAccounts(data.mamaAccounts);
+          if (Array.isArray(data.basket) && data.basket.length > 0) setBasket(data.basket);
+          if (Array.isArray(data.shoppingList)) setShoppingList(data.shoppingList);
+          if (data.yieldRates) setYieldRates(parseSavedYieldRates(JSON.stringify(data.yieldRates)));
+
+          setCloudSyncStatus('synced');
+          setLastCloudSyncTime(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }));
+          isInitialCloudLoadDoneRef.current = true;
+          setTimeout(() => {
+            isRemoteSyncRef.current = false;
+          }, 300);
+        } else {
+          // If the Firestore document does not exist yet for this month, seed initial base state to cloud
+          try {
+            const initialSeedData = {
+              month: selectedMonth,
+              bills: bills,
+              transactions: transactions,
+              accounts: accounts,
+              mamaAccounts: mamaAccounts,
+              basket: basket,
+              shoppingList: shoppingList,
+              yieldRates: yieldRates,
+              updatedAt: new Date().toISOString(),
+            };
+            await setDoc(docRef, initialSeedData, { merge: true });
+            setCloudSyncStatus('synced');
+            setLastCloudSyncTime(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }));
+            isInitialCloudLoadDoneRef.current = true;
+          } catch (seedErr) {
+            console.warn('Could not seed initial month data to Firestore:', seedErr);
+            setCloudSyncStatus('offline');
+          }
+        }
+      },
+      (error) => {
+        console.warn('Firestore real-time listener error:', error);
+        setCloudSyncStatus('offline');
+      }
+    );
+
+    return () => unsubscribe();
+  }, [selectedMonth]);
+
+  // 2. Debounced Cloud Persistence when user makes modifications
+  useEffect(() => {
+    if (!isInitialCloudLoadDoneRef.current || isRemoteSyncRef.current) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        setCloudSyncStatus('syncing');
+        const docRef = doc(db, 'movimientos_financieros', selectedMonth);
+        await setDoc(
+          docRef,
+          {
+            month: selectedMonth,
+            bills,
+            transactions,
+            accounts,
+            mamaAccounts,
+            basket,
+            shoppingList,
+            yieldRates,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        setCloudSyncStatus('synced');
+        setLastCloudSyncTime(new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }));
+      } catch (err) {
+        console.warn('Error syncing update to Firestore:', err);
+        setCloudSyncStatus('offline');
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [bills, transactions, accounts, mamaAccounts, basket, shoppingList, yieldRates, selectedMonth]);
 
   // Calculations
   const totalBalance = useMemo(() => {
@@ -1403,6 +1520,43 @@ function MainApp() {
             <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
             <span>Exportar a Excel</span>
           </button>
+        </div>
+
+        {/* Real-Time Firestore Sync Status Indicator */}
+        <div className="flex items-center justify-between text-[10px] bg-slate-950/70 border border-slate-800/80 rounded-xl px-2.5 py-1">
+          <div className="flex items-center gap-1.5">
+            {cloudSyncStatus === 'synced' && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400 font-medium flex items-center gap-1">
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" /> En línea / Sincronizado en la nube ☁️
+                </span>
+                {lastCloudSyncTime && (
+                  <span className="text-slate-500 font-mono">({lastCloudSyncTime})</span>
+                )}
+              </>
+            )}
+            {cloudSyncStatus === 'syncing' && (
+              <>
+                <RefreshCw className="w-3 h-3 text-sky-400 animate-spin" />
+                <span className="text-sky-400 font-medium flex items-center gap-1">
+                  <CloudUpload className="w-3.5 h-3.5 text-sky-400" /> Sincronizando con Firestore... ☁️
+                </span>
+              </>
+            )}
+            {(cloudSyncStatus === 'offline' || cloudSyncStatus === 'error') && (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-amber-400 font-medium flex items-center gap-1">
+                  <Cloud className="w-3.5 h-3.5 text-amber-400" /> Modo local (guardado en dispositivo) ☁️
+                </span>
+              </>
+            )}
+          </div>
+
+          <span className="text-[9px] text-slate-500 font-mono">
+            {selectedMonth}
+          </span>
         </div>
       </header>
 

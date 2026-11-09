@@ -1,0 +1,27 @@
+{
+  "entities": {
+    "FinancialPeriod": {
+      "title": "FinancialPeriod",
+      "description": "Estado y movimientos financieros consolidados de un período mensual",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string", "description": "Clave del mes YYYY-MM" },
+        "bills": { "type": "array", "description": "Listado de impuestos y vencimientos del período" },
+        "transactions": { "type": "array", "description": "Transacciones de ingresos y egresos" },
+        "accounts": { "type": "array", "description": "Saldos de cuentas y billeteras" },
+        "mamaAccounts": { "type": "array", "description": "Cuentas y saldos de Mamá" },
+        "basket": { "type": "array", "description": "Historial de canasta y precios" },
+        "shoppingList": { "type": "array", "description": "Lista de compras y faltantes" },
+        "yieldRates": { "type": "object", "description": "Tasas y cotizaciones de divisas" },
+        "updatedAt": { "type": "string", "description": "Marca temporal de la última sincronización" }
+      },
+      "required": ["month"]
+    }
+  },
+  "firestore": {
+    "/movimientos_financieros/{monthId}": {
+      "schema": "FinancialPeriod",
+      "description": "Colección de registros financieros y vencimientos por período mensual"
+    }
+  }
+}
