@@ -247,86 +247,9 @@ const INITIAL_YIELD_RATES: YieldRates = {
 
 // COMPREHENSIVE DEFINITIVE BILLS DATABASE
 const INITIAL_BILLS: Bill[] = [
-  // A. SERVICIOS PERSONALES Y HOGAR (YO)
-  { id: 'a_epe', title: 'EPE Santa Fe', provider: 'Empresa Provincial de la Energía', amount: null, dueDate: '2026-11-09', dueDay: 9, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Esperando factura de luz domicilio central' },
-  { id: 'a_gas', title: 'GAS (Litoral Gas)', provider: 'Litoral Gas S.A.', amount: 14800, dueDate: '2026-11-19', dueDay: 19, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Consumo bimestral primavera' },
-  { id: 'a_agua', title: 'AGUA', provider: 'Aguas Santafesinas S.A.', amount: null, dueDate: '2026-11-13', dueDay: 13, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Servicio de agua corriente' },
-  { id: 'a_celular', title: 'Celular Personal', provider: 'Telefonía Móvil', amount: 24500, dueDate: '2026-11-02', dueDay: 2, group: 'hogar', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'Macro Cuo Pay', status: 'paid', paidAt: '2026-11-02', paidFromAccountId: 'banco_macro', notes: 'Plan celular familiar' },
-  { id: 'a_tgi', title: 'TGI URBANO', provider: 'Municipalidad - Tasa Gral Inmueble', amount: 8900, dueDate: '2026-11-07', dueDay: 7, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'paid', paidAt: '2026-11-07', paidFromAccountId: 'banco_santa_fe', notes: 'Tasa mensual servicios urbanos' },
-  { id: 'a_inmob_urbano', title: 'INMOBILIARIO URBANO', provider: 'API Santa Fe', amount: null, dueDate: '', dueDay: 0, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'paid', isAnnual: true, notes: 'Pago Anual ya abonado con descuento' },
-  { id: 'a_alarma', title: 'ALARMA', provider: 'Seguridad y Monitoreo', amount: 28000, dueDate: '2026-11-07', dueDay: 7, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Transferencia Macro', status: 'paid', paidAt: '2026-11-07', paidFromAccountId: 'banco_macro', notes: 'Monitoreo 24hs alarma hogar' },
-  { id: 'a_internet', title: 'INTERNET (Fibertec)', provider: 'Fibertec Conectividad', amount: 26500, dueDate: '2026-11-11', dueDay: 11, group: 'hogar', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Banda ancha fibra óptica' },
-  { id: 'a_directv', title: 'DIRECTV GO', provider: 'DIRECTV / DGO', amount: 16900, dueDate: '2026-11-15', dueDay: 15, group: 'hogar', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'Débito Tarjeta Visa Macro', status: 'pending', notes: 'Streaming y TV en vivo' },
-  { id: 'a_osde', title: 'OSDE Salud', provider: 'OSDE Cobertura Médica', amount: 165000, dueDate: '2026-11-12', dueDay: 12, group: 'hogar', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito en Cuenta Macro', status: 'pending', notes: 'Plan médico titular' },
-  { id: 'a_binaria', title: 'Binaria Salud', provider: 'Binaria Seguros / BNA', amount: 48000, dueDate: '2026-11-10', dueDay: 10, group: 'hogar', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático BNA', status: 'pending', notes: 'Seguro de salud y vida BNA' },
-  { id: 'a_monotributo', title: 'Monotributo CAT. "D"', provider: 'ARCA / AFIP', amount: 56200, dueDate: '2026-11-20', dueDay: 20, group: 'hogar', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático BNA', status: 'pending', notes: 'Aporte mensual Monotributo Cat D' },
-  { id: 'a_estudio_contable', title: 'Estudio Contable', provider: 'Honorarios Contables', amount: 75000, dueDate: '2026-11-20', dueDay: 20, group: 'hogar', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático Banco Macro', status: 'pending', notes: 'Honorarios mensuales liquidación impositiva' },
-
-  // B. TARJETAS DE CRÉDITO Y SUSCRIPCIONES
-  { id: 'b_visa_macro', title: 'Tarj. VISA MACRO', provider: 'Banco Macro Visa', amount: 310000, dueDate: '2026-11-02', dueDay: 2, group: 'tarjetas', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático Macro', status: 'paid', paidAt: '2026-11-02', paidFromAccountId: 'banco_macro', notes: 'Resumen consolidado. Incluye débitos en plástico de Starlink Campo, Netflix y YouTube', subservices: ['Starlink Campo', 'Netflix', 'YouTube'] },
-  { id: 'b_nativa_visa', title: 'Tarj. NATIVA VISA', provider: 'Banco Nación BNA', amount: 84000, dueDate: '2026-11-04', dueDay: 4, group: 'tarjetas', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito BNA', status: 'paid', paidAt: '2026-11-04', paidFromAccountId: 'banco_nacion', notes: 'Resumen tarjeta BNA' },
-  { id: 'b_nativa_master', title: 'Tarj. NATIVA MASTER', provider: 'Banco Nación BNA', amount: 62000, dueDate: '2026-11-04', dueDay: 4, group: 'tarjetas', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito BNA', status: 'paid', paidAt: '2026-11-04', paidFromAccountId: 'banco_nacion', notes: 'Resumen tarjeta Mastercard BNA' },
-  { id: 'b_tarj_mp', title: 'Tarj. Mercado Pago', provider: 'Mercado Pago Mastercard', amount: 45000, dueDate: '2026-11-11', dueDay: 11, group: 'tarjetas', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Cuenta MP', status: 'pending', notes: 'Resumen crédito Mercado Pago' },
-  { id: 'b_streaming_pack', title: 'Streaming (Disney, Prime, Max, etc.)', provider: 'Suscripciones Digitales', amount: 32500, dueDate: '2026-11-18', dueDay: 18, group: 'tarjetas', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'Débito en Tarjeta', status: 'pending', notes: 'Disney+, Universal+, Prime Video, Paramount+, HBO Max, Mercado Libre Pelis', subservices: ['Disney+', 'Universal+', 'Prime Video', 'Paramount+', 'HBO Max', 'ML Pelis'] },
-
-  // C. VEHÍCULOS, AHORRO Y MOVILIDAD
-  { id: 'c_ford_giorgi', title: 'Plan Ford Giorgi (Ahorro/Inversión)', provider: 'Giorgi Automotores Ford', amount: 145000, dueDate: '2026-11-10', dueDay: 10, group: 'movilidad', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático Macro', status: 'pending', notes: 'Plan de ahorro e inversión vehicular oficial' },
-  { id: 'c_territory', title: 'Territory Titanium (Cuota Mensual)', provider: 'Ford Credit / Financiación', amount: 260000, dueDate: '2026-11-28', dueDay: 28, group: 'movilidad', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Banco Macro', status: 'pending', notes: 'Cuota Territory Titanium (reemplazo de Oroch)' },
-  { id: 'c_patente', title: 'Patente Automotor', provider: 'Comuna / API Patentes', amount: null, dueDate: '2026-11-25', dueDay: 25, group: 'movilidad', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual / Comuna', status: 'pending', notes: 'Impuesto de patente vehículos familiares' },
-  { id: 'c_combustible', title: 'Combustible (Presupuesto)', provider: 'App YPF / Macro MODO', amount: 120000, dueDate: '2026-11-30', dueDay: 30, group: 'movilidad', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'App YPF / Macro MODO', status: 'pending', notes: 'Cargas de Infinia nafta y GNC con descuentos' },
-
-  // D. RENATO
-  { id: 'd_colegio_rena', title: 'Colegio Rena', provider: 'Colegio', amount: 135000, dueDate: '2026-11-10', dueDay: 10, group: 'renato', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático Macro', status: 'pending', notes: 'Cuota mensual educación escolar' },
-  { id: 'd_ingles_rena', title: 'Inglés Rena', provider: 'Instituto de Idiomas', amount: null, dueDate: '', dueDay: 0, group: 'renato', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'paid', isAnnual: true, notes: 'Pago Anual ya abonado' },
-  { id: 'd_club_rena', title: 'Club + Fútbol Rena', provider: 'Club Náutico / Deportivo', amount: 38000, dueDate: '2026-11-10', dueDay: 10, group: 'renato', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático BNA', status: 'pending', notes: 'Cuota social + entrenamiento fútbol' },
-  { id: 'd_gym_rena', title: 'Gimnasio Rena', provider: 'Gym & Entrenamiento', amount: 22000, dueDate: '2026-11-15', dueDay: 15, group: 'renato', paymentMethod: 'pago_manual', paymentMethodDetail: 'Transferencia / Efectivo', status: 'pending', notes: 'Acondicionamiento físico' },
-  { id: 'd_roller_rena', title: 'RollerFútbol Rena', provider: 'Clases de Roller', amount: 18000, dueDate: '2026-11-20', dueDay: 20, group: 'renato', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago por Clases (MP)', status: 'pending', notes: 'Clases deportivas por mes' },
-
-  // E. LORENA (ACTIVIDADES)
-  { id: 'e_gym_lore', title: 'Gimnasio Lore', provider: 'Centro de Entrenamiento', amount: 24000, dueDate: '2026-11-03', dueDay: 3, group: 'lorena', paymentMethod: 'pago_manual', paymentMethodDetail: 'Transferencia / Mercado Pago', status: 'paid', paidAt: '2026-11-03', paidFromAccountId: 'mercado_pago', notes: 'Pase libre mensual gimnasio' },
-  { id: 'e_stretching_lore', title: 'Stretching Lore', provider: 'Estudio de Flexibilidad', amount: 20000, dueDate: '2026-11-03', dueDay: 3, group: 'lorena', paymentMethod: 'pago_manual', paymentMethodDetail: 'Transferencia / Mercado Pago', status: 'paid', paidAt: '2026-11-03', paidFromAccountId: 'mercado_pago', notes: 'Clases semanales de stretching' },
-
-  // F. EL CAMPO & CONSUMO HOGAR
-  { id: 'f_starlink_campo', title: 'Starlink Campo', provider: 'Starlink Internet Satelital', amount: 56000, dueDate: '2026-11-02', dueDay: 2, group: 'campo', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'Débito Tarj. Visa Macro', status: 'paid', paidAt: '2026-11-02', paidFromAccountId: 'banco_macro', notes: 'Conectividad satelital chacra (en resumen Macro)' },
-  { id: 'f_inmob_rural', title: 'Inmobiliario Rural', provider: 'API Santa Fe Rural', amount: 48500, dueDate: '2026-11-20', dueDay: 20, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Impuesto predio rural' },
-  { id: 'f_julian_campo', title: 'Julián mant.campo', provider: 'Encargado Mantenimiento Predio', amount: 350000, dueDate: '2026-11-03', dueDay: 3, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Transferencia Macro', status: 'paid', paidAt: '2026-11-03', paidFromAccountId: 'banco_macro', notes: 'Monto fijo convenido mensual ($350.000)' },
-  { id: 'f_limpieza_casa', title: 'Limpieza mi casa', provider: 'Personal del Hogar', amount: 72000, dueDate: '2026-11-15', dueDay: 15, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Efectivo / Transferencia', status: 'pending', notes: 'Servicio periódico de limpieza' },
-  { id: 'f_gallinas_alimento', title: 'Gallinas Felices Alimento', provider: 'Insumos Avícolas', amount: 38000, dueDate: '2026-11-12', dueDay: 12, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Efectivo / Transferencia', status: 'pending', notes: 'Alimento postura y maíz' },
-  { id: 'f_mascotas', title: 'Perros + Gatos', provider: 'Veterinaria & Alimento', amount: 45000, dueDate: '2026-11-16', dueDay: 16, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Mercado Pago / Efectivo', status: 'pending', notes: 'Alimento balanceado y veterinaria' },
-  { id: 'f_supermercado', title: 'Supermercado & SuperRural', provider: 'Compras de Almacén', amount: 160000, dueDate: '2026-11-25', dueDay: 25, group: 'campo', paymentMethod: 'pago_manual', paymentMethodDetail: 'Registro vía Escáner de Tickets', status: 'pending', notes: 'Auditoría canasta básica con escáner de fotos' },
-
-  // G. MAMÁ (EXCLUSIVO IMPUESTOS Y SERVICIOS - BANCO SANTA FE)
-  { id: 'g_epe_mama', title: 'EPE Mamá', provider: 'Empresa Provincial de la Energía', amount: null, dueDate: '2026-11-09', dueDay: 9, group: 'mama', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual / Débito BSF', status: 'pending', notes: 'Medidor residencial de Mamá' },
-  { id: 'g_gas_mama', title: 'GAS Mamá', provider: 'Litoral Gas S.A.', amount: 11200, dueDate: '2026-11-02', dueDay: 2, group: 'mama', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual / Débito BSF', status: 'paid', paidAt: '2026-11-02', paidFromAccountId: 'mama_bsf', notes: 'Factura gas cancelada' },
-  { id: 'g_agua_mama', title: 'AGUA Mamá', provider: 'Aguas Santafesinas S.A.', amount: null, dueDate: '2026-11-18', dueDay: 18, group: 'mama', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual', status: 'pending', notes: 'Agua potable casa Mamá' },
-  { id: 'g_celular_mama', title: 'Celular Mamá', provider: 'Telefonía Móvil', amount: 18500, dueDate: '2026-11-15', dueDay: 15, group: 'mama', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Banco Santa Fe Mamá', status: 'pending', notes: 'Línea móvil de Mamá' },
-  { id: 'g_tgi_mama', title: 'TGI URBANO Mamá', provider: 'Municipalidad Tasa General', amount: 7800, dueDate: '2026-11-16', dueDay: 16, group: 'mama', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual BSF', status: 'pending', notes: 'Tasa urbana municipal' },
-  { id: 'g_inmob_mama', title: 'INMOBILIARIO Mamá', provider: 'API Santa Fe', amount: 14500, dueDate: '2026-11-16', dueDay: 16, group: 'mama', paymentMethod: 'pago_manual', paymentMethodDetail: 'Pago Manual BSF', status: 'pending', notes: 'Impuesto inmobiliario provincial' },
-  { id: 'g_flow_mama', title: 'Flow Mamá', provider: 'Telecom Flow', amount: 16800, dueDate: '2026-11-11', dueDay: 11, group: 'mama', paymentMethod: 'debito_tarjeta', paymentMethodDetail: 'Débito Automático Tarjeta Mamá', status: 'pending', notes: 'Cable e internet de Mamá' },
-  { id: 'g_monotributo_mama', title: 'Monotributo Mamá', provider: 'ARCA / AFIP', amount: 32000, dueDate: '2026-11-20', dueDay: 20, group: 'mama', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático BNA Mamá', status: 'pending', notes: 'Monotributo previsional' },
-  { id: 'g_estudio_mama', title: 'Estudio Contable Mamá', provider: 'Honorarios Contables', amount: 45000, dueDate: '2026-11-20', dueDay: 20, group: 'mama', paymentMethod: 'debito_cuenta', paymentMethodDetail: 'Débito Automático BSF Mamá', status: 'pending', notes: 'Honorarios contables mensuales' },
 ];
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
-  // 1. Fuentes de Ingresos
-  { id: 'ti1', date: '2026-11-03', description: 'Cobro Alquiler del Campo (Renta de arrendamiento rural)', amount: 1150000, type: 'income', accountId: 'banco_santa_fe', costCenter: 'campo', incomeSource: 'alquiler_campo', owner: 'personal' },
-  { id: 'ti2', date: '2026-11-06', description: 'Comisiones Corretaje Scilingo Hnos. (Liquidación de cereal)', amount: 680000, type: 'income', accountId: 'banco_macro', costCenter: 'hogar', incomeSource: 'comisiones_scilingo', owner: 'personal' },
-  { id: 'ti3', date: '2026-11-08', description: 'Comisiones Corretaje Scilingo Hnos. (Operación lote maíz)', amount: 340000, type: 'income', accountId: 'banco_santa_fe', costCenter: 'hogar', incomeSource: 'comisiones_scilingo', owner: 'personal' },
-
-  // Egresos Pagados
-  { id: 'tx_julian', date: '2026-11-03', description: 'Pago Julián mant.campo ($350.000 convenido)', amount: 350000, type: 'expense', accountId: 'banco_macro', costCenter: 'campo', campoCategory: 'julian', owner: 'personal' },
-  { id: 'tx_visa_macro', date: '2026-11-02', description: 'Pago Tarj. VISA MACRO (incluye Starlink, Netflix, YouTube)', amount: 310000, type: 'expense', accountId: 'banco_macro', costCenter: 'hogar', owner: 'personal' },
-  { id: 'tx_nativa_v', date: '2026-11-04', description: 'Pago Tarj. NATIVA VISA BNA', amount: 84000, type: 'expense', accountId: 'banco_nacion', costCenter: 'hogar', owner: 'personal' },
-  { id: 'tx_nativa_m', date: '2026-11-04', description: 'Pago Tarj. NATIVA MASTER BNA', amount: 62000, type: 'expense', accountId: 'banco_nacion', costCenter: 'hogar', owner: 'personal' },
-  { id: 'tx_gym_lore', date: '2026-11-03', description: 'Pago Gimnasio Lore', amount: 24000, type: 'expense', accountId: 'mercado_pago', costCenter: 'lorena', owner: 'personal' },
-  { id: 'tx_stretch_lore', date: '2026-11-03', description: 'Pago Stretching Lore', amount: 20000, type: 'expense', accountId: 'mercado_pago', costCenter: 'lorena', owner: 'personal' },
-  { id: 'tx_celu', date: '2026-11-02', description: 'Pago Celular Personal Macro Cuo Pay', amount: 24500, type: 'expense', accountId: 'banco_macro', costCenter: 'hogar', owner: 'personal' },
-  { id: 'tx_tgi', date: '2026-11-07', description: 'Pago TGI URBANO', amount: 8900, type: 'expense', accountId: 'banco_santa_fe', costCenter: 'hogar', owner: 'personal' },
-  { id: 'tx_alarma', date: '2026-11-07', description: 'Pago ALARMA Transferencia Macro', amount: 28000, type: 'expense', accountId: 'banco_macro', costCenter: 'hogar', owner: 'personal' },
-
-  // Mamá
-  { id: 'ti_mama', date: '2026-11-01', description: 'Acreditación Jubilación Mamá', amount: 520000, type: 'income', accountId: 'mama_bsf', costCenter: 'mama', incomeSource: 'jubilacion', owner: 'mama' },
-  { id: 'tx_gas_mama', date: '2026-11-02', description: 'Pago GAS Mamá Litoral Gas', amount: 11200, type: 'expense', accountId: 'mama_bsf', costCenter: 'mama', owner: 'mama' },
 ];
 
 const INITIAL_BASKET: BasketItem[] = [
