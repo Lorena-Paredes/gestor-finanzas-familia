@@ -1,0 +1,7 @@
+{
+  "name": "Gestor Financiero y Contador de Familia",
+  "description": "Contador personal, optimizador de presupuesto familiar, vencimientos de servicios e impuestos, finanzas de mamá, escáner de tickets y control de gastos de Renato.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
