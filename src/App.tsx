@@ -325,45 +325,142 @@ const INITIAL_SHOPPING_LIST: ShoppingNeed[] = [
   { id: 's5', title: 'Huevos de campo x 30 maples', urgent: false, completed: false },
 ];
 
-export default function App() {
+// --- RESILIENT DATA PARSERS (PREVENTS WHITE SCREEN ON STALE/CORRUPT LOCALSTORAGE) ---
+const parseSavedYieldRates = (saved: string | null): YieldRates => {
+  if (!saved) return INITIAL_YIELD_RATES;
+  try {
+    const p = JSON.parse(saved);
+    if (!p || typeof p !== 'object') return INITIAL_YIELD_RATES;
+    return {
+      mercadoPagoTNA: Number(p.mercadoPagoTNA) >= 0 ? Number(p.mercadoPagoTNA) : INITIAL_YIELD_RATES.mercadoPagoTNA,
+      appYpfTNA: Number(p.appYpfTNA) >= 0 ? Number(p.appYpfTNA) : INITIAL_YIELD_RATES.appYpfTNA,
+      fondoPellegriniTNA: Number(p.fondoPellegriniTNA) >= 0 ? Number(p.fondoPellegriniTNA) : INITIAL_YIELD_RATES.fondoPellegriniTNA,
+      fondoMacroPesosTNA: Number(p.fondoMacroPesosTNA) >= 0 ? Number(p.fondoMacroPesosTNA) : INITIAL_YIELD_RATES.fondoMacroPesosTNA,
+      fondoMacroPesosSaldo: Number(p.fondoMacroPesosSaldo) >= 0 ? Number(p.fondoMacroPesosSaldo) : INITIAL_YIELD_RATES.fondoMacroPesosSaldo,
+      fondoMacroDolaresCapital: Number(p.fondoMacroDolaresCapital) >= 0 ? Number(p.fondoMacroDolaresCapital) : INITIAL_YIELD_RATES.fondoMacroDolaresCapital,
+      fondoMacroDolaresTNA: Number(p.fondoMacroDolaresTNA) >= 0 ? Number(p.fondoMacroDolaresTNA) : INITIAL_YIELD_RATES.fondoMacroDolaresTNA,
+      macroValuationCurrency: p.macroValuationCurrency === 'blue' ? 'blue' : 'oficial',
+      plazoFijoTNA: Number(p.plazoFijoTNA) >= 0 ? Number(p.plazoFijoTNA) : INITIAL_YIELD_RATES.plazoFijoTNA,
+      dolarOficial: Number(p.dolarOficial) > 0 ? Number(p.dolarOficial) : INITIAL_YIELD_RATES.dolarOficial,
+      dolarOficialCompra: Number(p.dolarOficialCompra) > 0 ? Number(p.dolarOficialCompra) : INITIAL_YIELD_RATES.dolarOficialCompra,
+      dolarBlue: Number(p.dolarBlue) > 0 ? Number(p.dolarBlue) : INITIAL_YIELD_RATES.dolarBlue,
+      dolarBlueCompra: Number(p.dolarBlueCompra) > 0 ? Number(p.dolarBlueCompra) : INITIAL_YIELD_RATES.dolarBlueCompra,
+      lastDollarFetch: typeof p.lastDollarFetch === 'string' ? p.lastDollarFetch : '',
+    };
+  } catch (e) {
+    console.warn('Failed parsing saved yield rates, using initial defaults:', e);
+    return INITIAL_YIELD_RATES;
+  }
+};
+
+const parseSavedAccounts = (saved: string | null): Account[] => {
+  if (!saved) return INITIAL_ACCOUNTS;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing accounts, using initial defaults:', e);
+  }
+  return INITIAL_ACCOUNTS;
+};
+
+const parseSavedMamaAccounts = (saved: string | null): Account[] => {
+  if (!saved) return INITIAL_MAMA_ACCOUNTS;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing mama accounts, using initial defaults:', e);
+  }
+  return INITIAL_MAMA_ACCOUNTS;
+};
+
+const parseSavedBills = (saved: string | null): Bill[] => {
+  if (!saved) return INITIAL_BILLS;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing bills, using initial defaults:', e);
+  }
+  return INITIAL_BILLS;
+};
+
+const parseSavedBasket = (saved: string | null): BasketItem[] => {
+  if (!saved) return INITIAL_BASKET;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing basket, using initial defaults:', e);
+  }
+  return INITIAL_BASKET;
+};
+
+const parseSavedShoppingList = (saved: string | null): ShoppingNeed[] => {
+  if (!saved) return INITIAL_SHOPPING_LIST;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing shopping list, using initial defaults:', e);
+  }
+  return INITIAL_SHOPPING_LIST;
+};
+
+const parseSavedTransactions = (saved: string | null): Transaction[] => {
+  if (!saved) return INITIAL_TRANSACTIONS;
+  try {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch (e) {
+    console.warn('Failed parsing transactions, using initial defaults:', e);
+  }
+  return INITIAL_TRANSACTIONS;
+};
+
+const parseSavedSelectedMonth = (saved: string | null): string => {
+  if (!saved) return '2026-11';
+  try {
+    if (AVAILABLE_MONTHS.some(m => m.key === saved)) return saved;
+  } catch (e) {
+    console.warn('Failed parsing selected month, using default:', e);
+  }
+  return '2026-11';
+};
+
+function MainApp() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'vencimientos' | 'campo' | 'scanner' | 'mama' | 'renato'>('dashboard');
 
-  // Persistence States
+  // Persistence States with guaranteed fallbacks
   const [accounts, setAccounts] = useState<Account[]>(() => {
-    const saved = localStorage.getItem('gfc_accounts_v6');
-    return saved ? JSON.parse(saved) : INITIAL_ACCOUNTS;
+    return parseSavedAccounts(localStorage.getItem('gfc_accounts_v6'));
   });
 
   const [mamaAccounts, setMamaAccounts] = useState<Account[]>(() => {
-    const saved = localStorage.getItem('gfc_mama_accounts_v6');
-    return saved ? JSON.parse(saved) : INITIAL_MAMA_ACCOUNTS;
+    return parseSavedMamaAccounts(localStorage.getItem('gfc_mama_accounts_v6'));
   });
 
   const [bills, setBills] = useState<Bill[]>(() => {
-    const saved = localStorage.getItem('gfc_bills_v6');
-    return saved ? JSON.parse(saved) : INITIAL_BILLS;
+    return parseSavedBills(localStorage.getItem('gfc_bills_v6'));
   });
 
   const [basket, setBasket] = useState<BasketItem[]>(() => {
-    const saved = localStorage.getItem('gfc_basket_v6');
-    return saved ? JSON.parse(saved) : INITIAL_BASKET;
+    return parseSavedBasket(localStorage.getItem('gfc_basket_v6'));
   });
 
   const [shoppingList, setShoppingList] = useState<ShoppingNeed[]>(() => {
-    const saved = localStorage.getItem('gfc_shopping_list_v6');
-    return saved ? JSON.parse(saved) : INITIAL_SHOPPING_LIST;
+    return parseSavedShoppingList(localStorage.getItem('gfc_shopping_list_v6'));
   });
 
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('gfc_transactions_v6');
-    return saved ? JSON.parse(saved) : INITIAL_TRANSACTIONS;
+    return parseSavedTransactions(localStorage.getItem('gfc_transactions_v6'));
   });
 
   // Yield Rates Configuration State
   const [yieldRates, setYieldRates] = useState<YieldRates>(() => {
-    const saved = localStorage.getItem('gfc_yield_rates_v6');
-    return saved ? JSON.parse(saved) : INITIAL_YIELD_RATES;
+    return parseSavedYieldRates(localStorage.getItem('gfc_yield_rates_v6'));
   });
 
   // Dollar API status
@@ -469,17 +566,17 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          const oficialItem = data.find((d: any) => d.casa === 'oficial' || d.nombre?.toLowerCase().includes('oficial'));
-          const blueItem = data.find((d: any) => d.casa === 'blue' || d.nombre?.toLowerCase().includes('blue'));
+          const oficialItem = data.find((d: any) => d && (d.casa === 'oficial' || String(d.nombre).toLowerCase().includes('oficial')));
+          const blueItem = data.find((d: any) => d && (d.casa === 'blue' || String(d.nombre).toLowerCase().includes('blue')));
 
           const nowStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
           setYieldRates(prev => ({
             ...prev,
-            dolarOficial: oficialItem?.venta ? Number(oficialItem.venta) : prev.dolarOficial,
-            dolarOficialCompra: oficialItem?.compra ? Number(oficialItem.compra) : prev.dolarOficialCompra,
-            dolarBlue: blueItem?.venta ? Number(blueItem.venta) : prev.dolarBlue,
-            dolarBlueCompra: blueItem?.compra ? Number(blueItem.compra) : prev.dolarBlueCompra,
+            dolarOficial: (oficialItem?.venta && Number(oficialItem.venta) > 0) ? Number(oficialItem.venta) : (Number(prev?.dolarOficial) || 1570),
+            dolarOficialCompra: (oficialItem?.compra && Number(oficialItem.compra) > 0) ? Number(oficialItem.compra) : (Number(prev?.dolarOficialCompra) || 1520),
+            dolarBlue: (blueItem?.venta && Number(blueItem.venta) > 0) ? Number(blueItem.venta) : (Number(prev?.dolarBlue) || 1195),
+            dolarBlueCompra: (blueItem?.compra && Number(blueItem.compra) > 0) ? Number(blueItem.compra) : (Number(prev?.dolarBlueCompra) || 1165),
             lastDollarFetch: nowStr,
           }));
         }
@@ -527,8 +624,7 @@ export default function App() {
 
   // Selected Month / Period State
   const [selectedMonth, setSelectedMonth] = useState<string>(() => {
-    const saved = localStorage.getItem('gfc_selected_month_v6');
-    return saved || '2026-11';
+    return parseSavedSelectedMonth(localStorage.getItem('gfc_selected_month_v6'));
   });
 
   useEffect(() => {
@@ -747,45 +843,53 @@ export default function App() {
 
   // Yield Simulation Calculations across the 4 on-demand liquidity funds/wallets + Plazo Fijo
   const yieldSimulations = useMemo(() => {
-    const amount = simAmount > 0 ? simAmount : 100000;
+    const amount = Number(simAmount) > 0 ? Number(simAmount) : 100000;
+    const mpTNA = Number(yieldRates?.mercadoPagoTNA) >= 0 ? Number(yieldRates.mercadoPagoTNA) : 20.0;
+    const ypfTNA = Number(yieldRates?.appYpfTNA) >= 0 ? Number(yieldRates.appYpfTNA) : 20.1;
+    const pellegriniTNA = Number(yieldRates?.fondoPellegriniTNA) >= 0 ? Number(yieldRates.fondoPellegriniTNA) : 28.5;
+    const macroPesosTNA = Number(yieldRates?.fondoMacroPesosTNA) >= 0 ? Number(yieldRates.fondoMacroPesosTNA) : 27.8;
+    const macroPesosSaldo = Number(yieldRates?.fondoMacroPesosSaldo) >= 0 ? Number(yieldRates.fondoMacroPesosSaldo) : 2500000;
+    const macroDolaresCap = Number(yieldRates?.fondoMacroDolaresCapital) >= 0 ? Number(yieldRates.fondoMacroDolaresCapital) : 5000;
+    const macroDolaresTNA = Number(yieldRates?.fondoMacroDolaresTNA) >= 0 ? Number(yieldRates.fondoMacroDolaresTNA) : 2.5;
+    const pfTNA = Number(yieldRates?.plazoFijoTNA) >= 0 ? Number(yieldRates.plazoFijoTNA) : 30.0;
+    const dolarOficialRate = Number(yieldRates?.dolarOficial) > 0 ? Number(yieldRates.dolarOficial) : 1570;
+    const dolarBlueRate = Number(yieldRates?.dolarBlue) > 0 ? Number(yieldRates.dolarBlue) : 1195;
 
     // 1. Mercado Pago
-    const mpDaily = (amount * (yieldRates.mercadoPagoTNA / 100)) / 365;
-    const mpMonthly = (amount * (yieldRates.mercadoPagoTNA / 100)) / 12;
+    const mpDaily = (amount * (mpTNA / 100)) / 365;
+    const mpMonthly = (amount * (mpTNA / 100)) / 12;
 
     // 2. App YPF
-    const ypfDaily = (amount * (yieldRates.appYpfTNA / 100)) / 365;
-    const ypfMonthly = (amount * (yieldRates.appYpfTNA / 100)) / 12;
+    const ypfDaily = (amount * (ypfTNA / 100)) / 365;
+    const ypfMonthly = (amount * (ypfTNA / 100)) / 12;
 
     // 3. Fondo Pellegrini BNA
-    const pellegriniDaily = (amount * (yieldRates.fondoPellegriniTNA / 100)) / 365;
-    const pellegriniMonthly = (amount * (yieldRates.fondoPellegriniTNA / 100)) / 12;
+    const pellegriniDaily = (amount * (pellegriniTNA / 100)) / 365;
+    const pellegriniMonthly = (amount * (pellegriniTNA / 100)) / 12;
 
     // 4. Fondo Macro en Pesos
-    const macroPesosDaily = (amount * (yieldRates.fondoMacroPesosTNA / 100)) / 365;
-    const macroPesosMonthly = (amount * (yieldRates.fondoMacroPesosTNA / 100)) / 12;
+    const macroPesosDaily = (amount * (macroPesosTNA / 100)) / 365;
+    const macroPesosMonthly = (amount * (macroPesosTNA / 100)) / 12;
 
     // Actual actual invested yields for Fondo Macro Pesos
-    const macroPesosActualDaily = (yieldRates.fondoMacroPesosSaldo * (yieldRates.fondoMacroPesosTNA / 100)) / 365;
-    const macroPesosActualMonthly = (yieldRates.fondoMacroPesosSaldo * (yieldRates.fondoMacroPesosTNA / 100)) / 12;
+    const macroPesosActualDaily = (macroPesosSaldo * (macroPesosTNA / 100)) / 365;
+    const macroPesosActualMonthly = (macroPesosSaldo * (macroPesosTNA / 100)) / 12;
 
     // Fondo Macro en Dólares (Valuación en Pesos usando Dólar Oficial BNA o Blue)
-    const valuationCurrency = yieldRates.macroValuationCurrency || 'oficial';
-    const activeDollarRate = valuationCurrency === 'oficial'
-      ? (yieldRates.dolarOficial > 0 ? yieldRates.dolarOficial : 1570)
-      : (yieldRates.dolarBlue > 0 ? yieldRates.dolarBlue : 1195);
+    const valuationCurrency = yieldRates?.macroValuationCurrency === 'blue' ? 'blue' : 'oficial';
+    const activeDollarRate = valuationCurrency === 'oficial' ? dolarOficialRate : dolarBlueRate;
 
-    const macroDolaresPesosEquiv = yieldRates.fondoMacroDolaresCapital * activeDollarRate;
-    const macroDolaresAnnualUSD = (yieldRates.fondoMacroDolaresCapital * (yieldRates.fondoMacroDolaresTNA / 100));
+    const macroDolaresPesosEquiv = macroDolaresCap * activeDollarRate;
+    const macroDolaresAnnualUSD = (macroDolaresCap * (macroDolaresTNA / 100));
     const macroDolaresMonthlyUSD = macroDolaresAnnualUSD / 12;
     const macroDolaresAnnualARS = macroDolaresAnnualUSD * activeDollarRate;
 
     // Total Patrimonio Invertido a Resguardo (NO computado en saldo corriente de gastos)
-    const totalPatrimonioResguardoARS = yieldRates.fondoMacroPesosSaldo + macroDolaresPesosEquiv;
+    const totalPatrimonioResguardoARS = macroPesosSaldo + macroDolaresPesosEquiv;
 
     // Plazo Fijo (30 días)
-    const pfMonthly = (amount * (yieldRates.plazoFijoTNA / 100)) / 12;
-    const dolarOficialAmount = yieldRates.dolarOficial > 0 ? amount / yieldRates.dolarOficial : 0;
+    const pfMonthly = (amount * (pfTNA / 100)) / 12;
+    const dolarOficialAmount = dolarOficialRate > 0 ? amount / dolarOficialRate : 0;
 
     // Ranked list of 4 on-demand wallets/funds
     const onDemandWallets = [
@@ -1489,11 +1593,11 @@ export default function App() {
                   <div className="pt-1 flex items-baseline justify-between">
                     <div>
                       <span className="text-[10px] text-slate-400 block">Venta</span>
-                      <span className="text-lg font-black text-white">${yieldRates.dolarOficial.toLocaleString('es-AR')}</span>
+                      <span className="text-lg font-black text-white">${(Number(yieldRates?.dolarOficial) || 1570).toLocaleString('es-AR')}</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-slate-400 block">Compra</span>
-                      <span className="text-xs font-bold text-slate-300">${yieldRates.dolarOficialCompra.toLocaleString('es-AR')}</span>
+                      <span className="text-xs font-bold text-slate-300">${(Number(yieldRates?.dolarOficialCompra) || 1520).toLocaleString('es-AR')}</span>
                     </div>
                   </div>
                   <p className="text-[9px] text-slate-500 flex items-center justify-between pt-0.5">
@@ -1519,11 +1623,11 @@ export default function App() {
                   <div className="pt-1 flex items-baseline justify-between">
                     <div>
                       <span className="text-[10px] text-slate-400 block">Venta</span>
-                      <span className="text-lg font-black text-white">${yieldRates.dolarBlue.toLocaleString('es-AR')}</span>
+                      <span className="text-lg font-black text-white">${(Number(yieldRates?.dolarBlue) || 1195).toLocaleString('es-AR')}</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-slate-400 block">Compra</span>
-                      <span className="text-xs font-bold text-slate-300">${yieldRates.dolarBlueCompra.toLocaleString('es-AR')}</span>
+                      <span className="text-xs font-bold text-slate-300">${(Number(yieldRates?.dolarBlueCompra) || 1165).toLocaleString('es-AR')}</span>
                     </div>
                   </div>
                   <p className="text-[9px] text-slate-500 flex items-center justify-between pt-0.5">
@@ -1842,33 +1946,33 @@ export default function App() {
                               : 'bg-slate-800 text-slate-400 hover:text-white'
                           }`}
                         >
-                          Oficial BNA (${yieldRates.dolarOficial.toLocaleString('es-AR')})
+                          Oficial BNA (${(Number(yieldRates?.dolarOficial) || 1570).toLocaleString('es-AR')})
                         </button>
                         <button
                           type="button"
                           onClick={() => setYieldRates(prev => ({ ...prev, macroValuationCurrency: 'blue' }))}
                           title="Valuar a Dólar Blue Rosario"
                           className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors ${
-                            yieldRates.macroValuationCurrency === 'blue'
+                            yieldRates?.macroValuationCurrency === 'blue'
                               ? 'bg-sky-600 text-white shadow-sm'
                               : 'bg-slate-800 text-slate-400 hover:text-white'
                           }`}
                         >
-                          Blue (${yieldRates.dolarBlue.toLocaleString('es-AR')})
+                          Blue (${(Number(yieldRates?.dolarBlue) || 1195).toLocaleString('es-AR')})
                         </button>
                       </div>
                     </div>
                     <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-800">
-                      <span className="text-slate-400">Total en ARS ({yieldRates.macroValuationCurrency === 'blue' ? 'Blue' : 'Oficial BNA'}):</span>
-                      <strong className="text-emerald-400 font-bold text-xs">{formatARS(yieldSimulations.macroDolaresPesosEquiv)}</strong>
+                      <span className="text-slate-400">Total en ARS ({yieldRates?.macroValuationCurrency === 'blue' ? 'Blue' : 'Oficial BNA'}):</span>
+                      <strong className="text-emerald-400 font-bold text-xs">{formatARS(yieldSimulations?.macroDolaresPesosEquiv || 0)}</strong>
                     </div>
                     <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-800">
                       <span className="text-slate-400">Rendimiento anual estimado en USD:</span>
-                      <strong className="text-white font-bold">+US$ {yieldSimulations.macroDolaresAnnualUSD.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / año</strong>
+                      <strong className="text-white font-bold">+US$ {(Number(yieldSimulations?.macroDolaresAnnualUSD) || 0).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / año</strong>
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-slate-400">
                       <span>Equivalente mensual en USD:</span>
-                      <span className="text-emerald-300 font-semibold">+US$ {yieldSimulations.macroDolaresMonthlyUSD.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/mes (~{formatARS(yieldSimulations.macroDolaresAnnualARS / 12)})</span>
+                      <span className="text-emerald-300 font-semibold">+US$ {(Number(yieldSimulations?.macroDolaresMonthlyUSD) || 0).toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}/mes (~{formatARS(yieldSimulations?.macroDolaresAnnualARS ? yieldSimulations.macroDolaresAnnualARS / 12 : 0)})</span>
                     </div>
                   </div>
                 </div>
@@ -3466,5 +3570,88 @@ function PWAInstallGuideModal({ onClose }: { onClose: () => void }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// --- APPLICATION ERROR BOUNDARY (PREVENTS ANY WHITE BLANK SCREEN) ---
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class AppErrorBoundary extends React.Component<{ children: React.ReactNode }, ErrorBoundaryState> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('AppErrorBoundary caught an unhandled render error:', error, errorInfo);
+  }
+
+  handleRestoreDefaults = () => {
+    try {
+      localStorage.removeItem('gfc_yield_rates_v6');
+      localStorage.removeItem('gfc_selected_month_v6');
+    } catch (e) {
+      console.warn('Error clearing rates:', e);
+    }
+    window.location.reload();
+  };
+
+  handleFullReset = () => {
+    try {
+      localStorage.clear();
+    } catch (e) {
+      console.warn('Error clearing localStorage:', e);
+    }
+    window.location.reload();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-slate-900 border border-emerald-500/30 rounded-3xl p-6 text-center space-y-4 shadow-2xl">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+              <AlertTriangle className="w-8 h-8" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-slate-100">Recuperación Automática de Finanzas</h2>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Se detectó una discrepancia en el almacenamiento del navegador. Podés reanudar la app inmediatamente con datos limpios y seguros.
+              </p>
+            </div>
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={this.handleRestoreDefaults}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-emerald-900/30 transition-colors"
+              >
+                <RefreshCw className="w-4 h-4" /> Restaurar Cotizaciones y Recargar
+              </button>
+              <button
+                onClick={this.handleFullReset}
+                className="w-full py-2 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-[11px] cursor-pointer transition-colors"
+              >
+                Restablecer Todo a Valores de Fábrica
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <MainApp />
+    </AppErrorBoundary>
   );
 }
