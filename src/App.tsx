@@ -49,7 +49,10 @@ import {
   RefreshCw,
   Coins,
   Download,
-  Share2
+  Share2,
+  FileSpreadsheet,
+  Calendar,
+  ChevronDown
 } from 'lucide-react';
 
 // --- FORMATTERS & UTILS ---
@@ -118,7 +121,23 @@ export interface Bill {
   isAnnual?: boolean;
   notes?: string;
   subservices?: string[];
+  month?: string; // YYYY-MM period, e.g., '2026-11'
 }
+
+export interface MonthPeriod {
+  key: string; // YYYY-MM
+  label: string; // "Noviembre 2026"
+  shortLabel: string; // "Nov 2026"
+}
+
+export const AVAILABLE_MONTHS: MonthPeriod[] = [
+  { key: '2026-09', label: 'Septiembre 2026', shortLabel: 'Sep 2026' },
+  { key: '2026-10', label: 'Octubre 2026', shortLabel: 'Oct 2026' },
+  { key: '2026-11', label: 'Noviembre 2026', shortLabel: 'Nov 2026' },
+  { key: '2026-12', label: 'Diciembre 2026', shortLabel: 'Dic 2026' },
+  { key: '2027-01', label: 'Enero 2027', shortLabel: 'Ene 2027' },
+  { key: '2027-02', label: 'Febrero 2027', shortLabel: 'Feb 2027' },
+];
 
 export interface BasketItem {
   id: string;
@@ -162,11 +181,12 @@ export interface YieldRates {
   fondoMacroPesosSaldo: number; // Saldo invertido en Fondo Macro Pesos
   fondoMacroDolaresCapital: number; // Capital invertido en USD
   fondoMacroDolaresTNA: number; // Rendimiento estimado anual en USD (%)
+  macroValuationCurrency?: 'oficial' | 'blue'; // Moneda para valuar Fondo Macro USD en ARS
   plazoFijoTNA: number;
-  dolarMep: number;
-  dolarMepCompra: number;
-  dolarBlue: number;
-  dolarBlueCompra: number;
+  dolarOficial: number; // Dólar Oficial BNA Venta (ej. $1.570)
+  dolarOficialCompra: number; // Dólar Oficial BNA Compra
+  dolarBlue: number; // Dólar Blue Rosario / InfoDólar Venta
+  dolarBlueCompra: number; // Dólar Blue Rosario / InfoDólar Compra
   lastDollarFetch: string;
 }
 
@@ -193,11 +213,12 @@ const INITIAL_YIELD_RATES: YieldRates = {
   fondoMacroPesosSaldo: 2500000, // $2.500.000 invertido en Macro Pesos (Patrimonio a Resguardo)
   fondoMacroDolaresCapital: 5000, // USD 5.000 invertido en Macro Dólares
   fondoMacroDolaresTNA: 2.5, // 2.5% TNA anual en USD
+  macroValuationCurrency: 'oficial', // Valuado por defecto en Dólar Oficial BNA
   plazoFijoTNA: 30.0,
-  dolarMep: 1145,
-  dolarMepCompra: 1140,
-  dolarBlue: 1170,
-  dolarBlueCompra: 1150,
+  dolarOficial: 1570, // Dólar Oficial Banco Nación (BNA) Venta
+  dolarOficialCompra: 1520, // Dólar Oficial Banco Nación (BNA) Compra
+  dolarBlue: 1195, // Dólar Blue Rosario / InfoDólar Venta
+  dolarBlueCompra: 1165, // Dólar Blue Rosario / InfoDólar Compra
   lastDollarFetch: '',
 };
 
@@ -439,7 +460,7 @@ export default function App() {
   };
 
   // -------------------------------------------------------------
-  // REAL-TIME DOLAR API FETCH (ENDPOINT GENERAL /v1/dolares)
+  // REAL-TIME DOLAR API FETCH (DÓLAR OFICIAL BNA & BLUE ROSARIO)
   // -------------------------------------------------------------
   const fetchDollarQuotes = async () => {
     setIsFetchingDollar(true);
@@ -448,15 +469,15 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          const mepItem = data.find((d: any) => d.casa === 'bolsa' || d.casa === 'mep' || d.nombre?.toLowerCase().includes('bolsa'));
+          const oficialItem = data.find((d: any) => d.casa === 'oficial' || d.nombre?.toLowerCase().includes('oficial'));
           const blueItem = data.find((d: any) => d.casa === 'blue' || d.nombre?.toLowerCase().includes('blue'));
 
           const nowStr = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
           setYieldRates(prev => ({
             ...prev,
-            dolarMep: mepItem?.venta ? Number(mepItem.venta) : prev.dolarMep,
-            dolarMepCompra: mepItem?.compra ? Number(mepItem.compra) : prev.dolarMepCompra,
+            dolarOficial: oficialItem?.venta ? Number(oficialItem.venta) : prev.dolarOficial,
+            dolarOficialCompra: oficialItem?.compra ? Number(oficialItem.compra) : prev.dolarOficialCompra,
             dolarBlue: blueItem?.venta ? Number(blueItem.venta) : prev.dolarBlue,
             dolarBlueCompra: blueItem?.compra ? Number(blueItem.compra) : prev.dolarBlueCompra,
             lastDollarFetch: nowStr,
@@ -464,8 +485,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      // Silencioso: si la red falla o está offline, se conservan los valores guardados sin mostrar advertencias
-      console.warn('DolarAPI en modo respaldo con valores locales:', err);
+      console.warn('DolarAPI en modo respaldo con cotizaciones locales (BNA e InfoDólar):', err);
     } finally {
       setIsFetchingDollar(false);
     }
@@ -505,6 +525,21 @@ export default function App() {
     localStorage.setItem('gfc_yield_rates_v6', JSON.stringify(yieldRates));
   }, [yieldRates]);
 
+  // Selected Month / Period State
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => {
+    const saved = localStorage.getItem('gfc_selected_month_v6');
+    return saved || '2026-11';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('gfc_selected_month_v6', selectedMonth);
+  }, [selectedMonth]);
+
+  const currentMonthLabel = useMemo(() => {
+    const found = AVAILABLE_MONTHS.find(m => m.key === selectedMonth);
+    return found ? found.label : selectedMonth;
+  }, [selectedMonth]);
+
   // Calculations
   const totalBalance = useMemo(() => {
     return accounts.reduce((acc, curr) => acc + curr.balance, 0);
@@ -514,9 +549,25 @@ export default function App() {
     return mamaAccounts.reduce((acc, curr) => acc + curr.balance, 0);
   }, [mamaAccounts]);
 
+  // Current Month's Bills (filtered by selectedMonth; defaults to '2026-11' for legacy items)
+  const currentMonthBills = useMemo(() => {
+    return bills.filter(b => {
+      const bMonth = b.month || (b.dueDate ? b.dueDate.substring(0, 7) : '2026-11');
+      return bMonth === selectedMonth || b.isAnnual;
+    });
+  }, [bills, selectedMonth]);
+
+  // Current Month's Transactions (filtered by selectedMonth)
+  const periodTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      const tMonth = t.date ? t.date.substring(0, 7) : '2026-11';
+      return tMonth === selectedMonth;
+    });
+  }, [transactions, selectedMonth]);
+
   const currentMonthTransactions = useMemo(() => {
-    return transactions.filter(t => t.owner === 'personal');
-  }, [transactions]);
+    return periodTransactions.filter(t => t.owner === 'personal');
+  }, [periodTransactions]);
 
   const monthlyIncome = useMemo(() => {
     return currentMonthTransactions
@@ -534,35 +585,35 @@ export default function App() {
     return monthlyIncome - monthlyExpenses;
   }, [monthlyIncome, monthlyExpenses]);
 
-  // Income Sources Breakdown
+  // Income Sources Breakdown for the selected month
   const totalAlquilerCampo = useMemo(() => {
-    return transactions
+    return currentMonthTransactions
       .filter(t => t.type === 'income' && t.incomeSource === 'alquiler_campo')
       .reduce((acc, curr) => acc + curr.amount, 0);
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
   const totalComisionesScilingo = useMemo(() => {
-    return transactions
+    return currentMonthTransactions
       .filter(t => t.type === 'income' && t.incomeSource === 'comisiones_scilingo')
       .reduce((acc, curr) => acc + curr.amount, 0);
-  }, [transactions]);
+  }, [currentMonthTransactions]);
 
-  // Urgent alerts for bills (due in <= 2 days or overdue)
+  // Urgent alerts for bills (due in <= 2 days or overdue) within the selected month
   const urgentBills = useMemo(() => {
-    return bills.filter(b => {
+    return currentMonthBills.filter(b => {
       if (b.status === 'paid' || b.isAnnual) return false;
       const diff = getDaysDiff(b.dueDate);
       return diff <= 2;
     });
-  }, [bills]);
+  }, [currentMonthBills]);
 
   const toConfirmCount = useMemo(() => {
-    return bills.filter(b => b.amount === null && !b.isAnnual).length;
-  }, [bills]);
+    return currentMonthBills.filter(b => b.amount === null && !b.isAnnual).length;
+  }, [currentMonthBills]);
 
-  // Reconciliation Totals for Vencimientos (Cierre de Mes)
+  // Reconciliation Totals for Vencimientos (Cierre de Mes) for selected period
   const reconciliationTotals = useMemo(() => {
-    const nonAnnualBills = bills.filter(b => !b.isAnnual);
+    const nonAnnualBills = currentMonthBills.filter(b => !b.isAnnual);
 
     const debitoCuentaTotal = nonAnnualBills
       .filter(b => b.paymentMethod === 'debito_cuenta' && b.amount !== null)
@@ -596,7 +647,103 @@ export default function App() {
       debitoTarjetaPendiente,
       pagoManualPendiente,
     };
-  }, [bills]);
+  }, [currentMonthBills]);
+
+  // EXPORT TO EXCEL / CSV FUNCTION
+  const handleExportToExcel = () => {
+    const rows: string[] = [];
+    // BOM for proper Excel UTF-8 display in Spanish
+    rows.push('\uFEFF"Período: ' + currentMonthLabel + '"');
+    rows.push('"Generado el: ' + new Date().toLocaleDateString('es-AR') + ' ' + new Date().toLocaleTimeString('es-AR') + '"');
+    rows.push('');
+
+    // Table Header
+    rows.push([
+      '"Categoría / Destino"',
+      '"Concepto / Servicio"',
+      '"Proveedor / Emisor"',
+      '"Vencimiento"',
+      '"Importe (ARS)"',
+      '"Medio de Pago"',
+      '"Entidad Bancaria / Plástico"',
+      '"Estado"',
+      '"Fecha de Pago"',
+      '"Notas / Observaciones"'
+    ].join(';'));
+
+    const groupNames: Record<BillGroup, string> = {
+      hogar: 'YO - Hogar & Personal',
+      tarjetas: 'Tarjetas & Streaming',
+      movilidad: 'Vehículos & Movilidad',
+      renato: 'Renato',
+      lorena: 'Lorena',
+      campo: 'El Campo & Chacra',
+      mama: 'Mamá (Banco Santa Fe)',
+    };
+
+    const paymentMethodNames: Record<PaymentMethodType, string> = {
+      debito_cuenta: 'Débito en Cuenta',
+      debito_tarjeta: 'Débito en Tarjeta',
+      pago_manual: 'Pago Manual / Transferencia',
+    };
+
+    let sumPaid = 0;
+    let sumPending = 0;
+    let sumTotal = 0;
+
+    currentMonthBills.forEach(b => {
+      const cat = groupNames[b.group] || b.group;
+      const title = b.title.replace(/"/g, '""');
+      const provider = (b.provider || '').replace(/"/g, '""');
+      const dueDate = b.isAnnual ? 'Pago Anual' : (b.dueDate ? formatDate(b.dueDate) : `Día ${b.dueDay || '-'}`);
+      const amtNum = b.amount !== null ? b.amount : 0;
+      const amtStr = b.isAnnual ? 'Pago Anual' : (b.amount !== null ? amtNum.toString() : 'A confirmar');
+      const pm = paymentMethodNames[b.paymentMethod] || b.paymentMethod;
+      const pmd = (b.paymentMethodDetail || '').replace(/"/g, '""');
+      const statusStr = b.isAnnual ? 'Abonado Anual' : (b.status === 'paid' ? 'Pagado' : 'Pendiente');
+      const paidDate = b.paidAt ? formatDate(b.paidAt) : '-';
+      const notes = (b.notes || '').replace(/"/g, '""');
+
+      if (!b.isAnnual && b.amount !== null) {
+        sumTotal += amtNum;
+        if (b.status === 'paid') sumPaid += amtNum;
+        else sumPending += amtNum;
+      }
+
+      rows.push([
+        `"${cat}"`,
+        `"${title}"`,
+        `"${provider}"`,
+        `"${dueDate}"`,
+        `"${amtStr}"`,
+        `"${pm}"`,
+        `"${pmd}"`,
+        `"${statusStr}"`,
+        `"${paidDate}"`,
+        `"${notes}"`
+      ].join(';'));
+    });
+
+    // Summary Rows
+    rows.push('');
+    rows.push('"--- RESUMEN FINANCIERO DEL PERÍODO ---"');
+    rows.push(`"Total Ingresos del Mes (Renta + Scilingo + Otros)";"";"";"";"${monthlyIncome}";"";"";"";"";""`);
+    rows.push(`"Total Gastos Pagados / Ejecutados";"";"";"";"${sumPaid}";"";"";"";"";""`);
+    rows.push(`"Total Gastos Pendientes de Pago";"";"";"";"${sumPending}";"";"";"";"";""`);
+    rows.push(`"Total General de Gastos Computables";"";"";"";"${sumTotal}";"";"";"";"";""`);
+    rows.push(`"Superávit / Balance Operativo Neto";"";"";"";"${netOperatingBalance}";"";"";"";"";""`);
+
+    const csvContent = rows.join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Finanzas_Familia_${selectedMonth}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Yield Simulation Calculations across the 4 on-demand liquidity funds/wallets + Plazo Fijo
   const yieldSimulations = useMemo(() => {
@@ -622,19 +769,23 @@ export default function App() {
     const macroPesosActualDaily = (yieldRates.fondoMacroPesosSaldo * (yieldRates.fondoMacroPesosTNA / 100)) / 365;
     const macroPesosActualMonthly = (yieldRates.fondoMacroPesosSaldo * (yieldRates.fondoMacroPesosTNA / 100)) / 12;
 
-    // Fondo Macro en Dólares
-    const mepRate = yieldRates.dolarMep > 0 ? yieldRates.dolarMep : 1145;
-    const macroDolaresPesosEquiv = yieldRates.fondoMacroDolaresCapital * mepRate;
+    // Fondo Macro en Dólares (Valuación en Pesos usando Dólar Oficial BNA o Blue)
+    const valuationCurrency = yieldRates.macroValuationCurrency || 'oficial';
+    const activeDollarRate = valuationCurrency === 'oficial'
+      ? (yieldRates.dolarOficial > 0 ? yieldRates.dolarOficial : 1570)
+      : (yieldRates.dolarBlue > 0 ? yieldRates.dolarBlue : 1195);
+
+    const macroDolaresPesosEquiv = yieldRates.fondoMacroDolaresCapital * activeDollarRate;
     const macroDolaresAnnualUSD = (yieldRates.fondoMacroDolaresCapital * (yieldRates.fondoMacroDolaresTNA / 100));
     const macroDolaresMonthlyUSD = macroDolaresAnnualUSD / 12;
-    const macroDolaresAnnualARS = macroDolaresAnnualUSD * mepRate;
+    const macroDolaresAnnualARS = macroDolaresAnnualUSD * activeDollarRate;
 
     // Total Patrimonio Invertido a Resguardo (NO computado en saldo corriente de gastos)
     const totalPatrimonioResguardoARS = yieldRates.fondoMacroPesosSaldo + macroDolaresPesosEquiv;
 
     // Plazo Fijo (30 días)
     const pfMonthly = (amount * (yieldRates.plazoFijoTNA / 100)) / 12;
-    const dolarMepAmount = yieldRates.dolarMep > 0 ? amount / yieldRates.dolarMep : 0;
+    const dolarOficialAmount = yieldRates.dolarOficial > 0 ? amount / yieldRates.dolarOficial : 0;
 
     // Ranked list of 4 on-demand wallets/funds
     const onDemandWallets = [
@@ -702,39 +853,41 @@ export default function App() {
       macroDolaresMonthlyUSD,
       macroDolaresAnnualARS,
       totalPatrimonioResguardoARS,
+      activeDollarRate,
+      valuationCurrency,
       pfMonthly,
-      dolarMepAmount,
+      dolarOficialAmount,
       onDemandWallets,
       bestOnDemand,
     };
   }, [simAmount, yieldRates]);
 
-  // Campo expenses calculations
+  // Campo expenses calculations for selected period
   const campoExpenses = useMemo(() => {
-    return transactions.filter(t => t.costCenter === 'campo');
-  }, [transactions]);
+    return periodTransactions.filter(t => t.costCenter === 'campo');
+  }, [periodTransactions]);
 
   const totalCampo = useMemo(() => {
     return campoExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   }, [campoExpenses]);
 
-  // Renato calculations
+  // Renato calculations for selected period
   const renatoExpenses = useMemo(() => {
-    return transactions.filter(t => t.costCenter === 'renato');
-  }, [transactions]);
+    return periodTransactions.filter(t => t.costCenter === 'renato');
+  }, [periodTransactions]);
 
   const totalRenato = useMemo(() => {
     return renatoExpenses.reduce((acc, curr) => acc + curr.amount, 0);
   }, [renatoExpenses]);
 
-  // Filtered bills for Vencimientos module
+  // Filtered bills for Vencimientos module within the selected month
   const filteredBills = useMemo(() => {
-    return bills.filter(b => {
+    return currentMonthBills.filter(b => {
       const matchGroup = billsFilterGroup === 'all' || b.group === billsFilterGroup;
       const matchMethod = billsFilterPaymentMethod === 'all' || b.paymentMethod === billsFilterPaymentMethod;
       return matchGroup && matchMethod;
     });
-  }, [bills, billsFilterGroup, billsFilterPaymentMethod]);
+  }, [currentMonthBills, billsFilterGroup, billsFilterPaymentMethod]);
 
   // Status badge for bills
   const getBillStatusBadge = (bill: Bill) => {
@@ -1068,49 +1221,83 @@ export default function App() {
       />
 
       {/* Top Header Bar */}
-      <header className="sticky top-0 z-30 bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <h1 className="text-sm font-bold tracking-tight text-white">Contador de Familia</h1>
-              <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                PRO
-              </span>
+      <header className="sticky top-0 z-30 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-3.5 py-2.5 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/20 text-white font-bold shrink-0">
+              <Building2 className="w-5 h-5" />
             </div>
-            <p className="text-[11px] text-slate-400">Scilingo Hnos. • Renta Campo • Pellegrini BNA</p>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h1 className="text-sm font-bold tracking-tight text-white">Contador de Familia</h1>
+                <span className="text-[9px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  PRO
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400">Scilingo Hnos. • Renta Campo • Macro & BNA</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {!isPWAInstalled && (
+              <button
+                onClick={handleInstallPWA}
+                title="Instalar App en Celular o PC"
+                className="flex items-center gap-1 text-[11px] font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-2 py-1.5 rounded-lg transition-all shadow-md shadow-emerald-950/40 cursor-pointer animate-pulse"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Instalar</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => globalFileInputRef.current?.click()}
+              title="Subir Factura o Captura de Correo"
+              className="flex items-center gap-1 text-[11px] font-semibold bg-indigo-600/90 hover:bg-indigo-500 text-white px-2 py-1.5 rounded-lg transition-colors shadow-sm cursor-pointer"
+            >
+              <FileUp className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Factura</span>
+            </button>
+
+            <button
+              onClick={() => setIsNewTxModalOpen(true)}
+              className="flex items-center gap-1 text-[11px] font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1.5 rounded-lg transition-colors shadow-sm cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Nuevo</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {!isPWAInstalled && (
-            <button
-              onClick={handleInstallPWA}
-              title="Instalar App en Celular o PC"
-              className="flex items-center gap-1 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-2.5 py-1.5 rounded-lg transition-all shadow-md shadow-emerald-950/40 cursor-pointer animate-pulse"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Instalar App</span>
-            </button>
-          )}
+        {/* PERIOD SELECTOR & EXCEL EXPORT BAR */}
+        <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+          {/* Month / Period Dropdown */}
+          <div className="flex items-center gap-1.5 flex-1 max-w-[210px] relative">
+            <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
+            <div className="relative w-full">
+              <select
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 text-white font-bold text-xs rounded-xl px-2.5 py-1.5 appearance-none focus:outline-none focus:border-emerald-500 cursor-pointer pr-7 shadow-inner"
+              >
+                {AVAILABLE_MONTHS.map(m => (
+                  <option key={m.key} value={m.key}>
+                    📅 {m.label}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" />
+            </div>
+          </div>
 
+          {/* Export to Excel Button (Direct Download) */}
           <button
-            onClick={() => globalFileInputRef.current?.click()}
-            title="Subir Factura o Captura de Correo"
-            className="flex items-center gap-1 text-xs font-semibold bg-indigo-600/90 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-lg transition-colors shadow-sm cursor-pointer"
+            onClick={handleExportToExcel}
+            title={`Exportar planilla del mes (${currentMonthLabel}) a Excel / CSV`}
+            className="flex items-center gap-1.5 text-xs font-bold bg-emerald-950 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40 px-3 py-1.5 rounded-xl shadow-md transition-all cursor-pointer active:scale-95 shrink-0"
           >
-            <FileUp className="w-4 h-4" />
-            <span className="hidden sm:inline">Subir Factura</span>
-          </button>
-
-          <button
-            onClick={() => setIsNewTxModalOpen(true)}
-            className="flex items-center gap-1 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg transition-colors shadow-sm cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Nuevo</span>
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Exportar a Excel</span>
           </button>
         </div>
       </header>
@@ -1202,9 +1389,9 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-                      Cotización Dólar en Vivo (Tiempo Real)
+                      Cotización Dólar Oficial & Blue
                     </h2>
-                    <p className="text-[10px] text-slate-400">DolarAPI • Mercado Libre & Financiero</p>
+                    <p className="text-[10px] text-slate-400">Banco Nación (BNA) • InfoDólar Rosario</p>
                   </div>
                 </div>
 
@@ -1235,7 +1422,7 @@ export default function App() {
               {isEditingDollar && (
                 <div className="p-3 bg-slate-950 rounded-2xl border border-emerald-500/40 space-y-2.5 animate-in fade-in duration-200">
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold text-emerald-400">Ajuste Manual de Divisas</span>
+                    <span className="text-[11px] font-bold text-emerald-400">Ajuste Manual Rápido de Cotizaciones</span>
                     <button
                       onClick={() => setIsEditingDollar(false)}
                       className="text-[10px] text-slate-400 hover:text-white"
@@ -1245,25 +1432,25 @@ export default function App() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div className="space-y-1">
-                      <label className="text-[10px] text-emerald-400 block font-semibold">Dólar MEP Venta ($)</label>
+                      <label className="text-[10px] text-emerald-400 block font-semibold">Dólar BNA Venta ($)</label>
                       <input
                         type="number"
-                        value={yieldRates.dolarMep}
-                        onChange={e => setYieldRates({ ...yieldRates, dolarMep: parseFloat(e.target.value) || 0 })}
+                        value={yieldRates.dolarOficial}
+                        onChange={e => setYieldRates({ ...yieldRates, dolarOficial: parseFloat(e.target.value) || 0 })}
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-white font-bold"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-emerald-400 block font-semibold">Dólar MEP Compra ($)</label>
+                      <label className="text-[10px] text-emerald-400 block font-semibold">Dólar BNA Compra ($)</label>
                       <input
                         type="number"
-                        value={yieldRates.dolarMepCompra}
-                        onChange={e => setYieldRates({ ...yieldRates, dolarMepCompra: parseFloat(e.target.value) || 0 })}
+                        value={yieldRates.dolarOficialCompra}
+                        onChange={e => setYieldRates({ ...yieldRates, dolarOficialCompra: parseFloat(e.target.value) || 0 })}
                         className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2 py-1 text-white font-bold"
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-sky-400 block font-semibold">Dólar Blue Venta ($)</label>
+                      <label className="text-[10px] text-sky-400 block font-semibold">Dólar Blue Venta ($) (Rosario)</label>
                       <input
                         type="number"
                         value={yieldRates.dolarBlue}
@@ -1272,7 +1459,7 @@ export default function App() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] text-sky-400 block font-semibold">Dólar Blue Compra ($)</label>
+                      <label className="text-[10px] text-sky-400 block font-semibold">Dólar Blue Compra ($) (Rosario)</label>
                       <input
                         type="number"
                         value={yieldRates.dolarBlueCompra}
@@ -1285,44 +1472,48 @@ export default function App() {
               )}
 
               <div className="grid grid-cols-2 gap-2.5">
-                {/* Dólar MEP */}
+                {/* Dólar Oficial (Banco Nación - BNA) */}
                 <div
                   onClick={() => setIsEditingDollar(true)}
-                  title="Clic para editar cotización MEP"
+                  title="Tocar para editar cotización Dólar Oficial BNA"
                   className="bg-slate-950/80 p-3 rounded-2xl border border-emerald-500/30 space-y-1 cursor-pointer hover:border-emerald-400/60 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" /> Dólar MEP (Bolsa)
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-400" /> Dólar Oficial (BNA)
                     </span>
                     <span className="text-[9px] bg-emerald-950 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/20 font-semibold">
-                      Legal / Insumos
+                      Banco Nación
                     </span>
                   </div>
                   <div className="pt-1 flex items-baseline justify-between">
                     <div>
                       <span className="text-[10px] text-slate-400 block">Venta</span>
-                      <span className="text-lg font-black text-white">${yieldRates.dolarMep.toLocaleString('es-AR')}</span>
+                      <span className="text-lg font-black text-white">${yieldRates.dolarOficial.toLocaleString('es-AR')}</span>
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] text-slate-400 block">Compra</span>
-                      <span className="text-xs font-bold text-slate-300">${yieldRates.dolarMepCompra.toLocaleString('es-AR')}</span>
+                      <span className="text-xs font-bold text-slate-300">${yieldRates.dolarOficialCompra.toLocaleString('es-AR')}</span>
                     </div>
                   </div>
+                  <p className="text-[9px] text-slate-500 flex items-center justify-between pt-0.5">
+                    <span>Ref. BNA</span>
+                    <span className="text-emerald-400/80 underline font-medium">Tocar p/ editar</span>
+                  </p>
                 </div>
 
-                {/* Dólar Blue */}
+                {/* Dólar Blue (Rosario / InfoDólar) */}
                 <div
                   onClick={() => setIsEditingDollar(true)}
-                  title="Clic para editar cotización Blue"
+                  title="Tocar para editar cotización Dólar Blue Rosario"
                   className="bg-slate-950/80 p-3 rounded-2xl border border-sky-500/30 space-y-1 cursor-pointer hover:border-sky-400/60 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold text-sky-400 flex items-center gap-1">
-                      <DollarSign className="w-3.5 h-3.5 text-sky-400" /> Dólar Blue (Libre)
+                      <DollarSign className="w-3.5 h-3.5 text-sky-400" /> Dólar Blue (Rosario)
                     </span>
                     <span className="text-[9px] bg-sky-950 text-sky-300 px-1.5 py-0.2 rounded border border-sky-500/20 font-semibold">
-                      Referencia
+                      InfoDólar
                     </span>
                   </div>
                   <div className="pt-1 flex items-baseline justify-between">
@@ -1335,6 +1526,10 @@ export default function App() {
                       <span className="text-xs font-bold text-slate-300">${yieldRates.dolarBlueCompra.toLocaleString('es-AR')}</span>
                     </div>
                   </div>
+                  <p className="text-[9px] text-slate-500 flex items-center justify-between pt-0.5">
+                    <span>Mercado Local</span>
+                    <span className="text-sky-400/80 underline font-medium">Tocar p/ editar</span>
+                  </p>
                 </div>
               </div>
             </div>
@@ -1633,9 +1828,38 @@ export default function App() {
                     </div>
                   </div>
 
-                  <div className="bg-slate-900/80 rounded-xl p-2.5 border border-slate-800/80 space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-400">Conversión a Dólar MEP (${yieldRates.dolarMep.toLocaleString('es-AR')}):</span>
+                  <div className="bg-slate-900/80 rounded-xl p-2.5 border border-slate-800/80 space-y-2 text-xs">
+                    <div className="flex justify-between items-center text-[11px] flex-wrap gap-1">
+                      <span className="text-slate-400">Valuación en Pesos:</span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setYieldRates(prev => ({ ...prev, macroValuationCurrency: 'oficial' }))}
+                          title="Valuar a Dólar Oficial BNA"
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors ${
+                            yieldRates.macroValuationCurrency === 'oficial' || !yieldRates.macroValuationCurrency
+                              ? 'bg-emerald-600 text-white shadow-sm'
+                              : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Oficial BNA (${yieldRates.dolarOficial.toLocaleString('es-AR')})
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setYieldRates(prev => ({ ...prev, macroValuationCurrency: 'blue' }))}
+                          title="Valuar a Dólar Blue Rosario"
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold cursor-pointer transition-colors ${
+                            yieldRates.macroValuationCurrency === 'blue'
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'bg-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          Blue (${yieldRates.dolarBlue.toLocaleString('es-AR')})
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-800">
+                      <span className="text-slate-400">Total en ARS ({yieldRates.macroValuationCurrency === 'blue' ? 'Blue' : 'Oficial BNA'}):</span>
                       <strong className="text-emerald-400 font-bold text-xs">{formatARS(yieldSimulations.macroDolaresPesosEquiv)}</strong>
                     </div>
                     <div className="flex justify-between items-center text-[11px] pt-1 border-t border-slate-800">
@@ -1658,7 +1882,7 @@ export default function App() {
                   <Wheat className="w-4 h-4 text-amber-400" /> Fuentes de Ingresos Principales
                 </h2>
                 <span className="text-[10px] text-emerald-400 bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-500/30 font-semibold">
-                  Noviembre 2026
+                  {currentMonthLabel}
                 </span>
               </div>
 
@@ -2089,7 +2313,7 @@ export default function App() {
                 <CalendarClock className="w-4 h-4 text-amber-400" /> Vencimientos Asociados al Predio
               </h3>
               <div className="space-y-2">
-                {bills.filter(b => b.group === 'campo').map(b => (
+                {currentMonthBills.filter(b => b.group === 'campo').map(b => (
                   <div key={b.id} className="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between text-xs">
                     <div>
                       <span className="font-bold text-white block">{b.title}</span>
@@ -2322,12 +2546,12 @@ export default function App() {
 
             <div className="space-y-2 pt-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-                <span>Servicios de Mamá (EPE, Gas, Agua, Celular, etc.)</span>
-                <span className="text-[10px] text-purple-400">{bills.filter(b => b.group === 'mama').length} ítems</span>
+                <span>Servicios de Mamá ({currentMonthLabel})</span>
+                <span className="text-[10px] text-purple-400">{currentMonthBills.filter(b => b.group === 'mama').length} ítems</span>
               </h3>
 
               <div className="space-y-2">
-                {bills.filter(b => b.group === 'mama').map(bill => (
+                {currentMonthBills.filter(b => b.group === 'mama').map(bill => (
                   <div key={bill.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
@@ -2368,7 +2592,7 @@ export default function App() {
                   </div>
                   <div>
                     <h2 className="text-base font-bold text-white">Auditoría de Gastos de Renato</h2>
-                    <p className="text-xs text-slate-400">Colegio, Club, Fútbol, Gimnasio y Roller</p>
+                    <p className="text-xs text-slate-400">Colegio, Club, Fútbol, Gimnasio y Roller ({currentMonthLabel})</p>
                   </div>
                 </div>
               </div>
@@ -2392,7 +2616,7 @@ export default function App() {
             <div className="space-y-2">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Actividades y Cuotas de Renato</h3>
               <div className="space-y-2">
-                {bills.filter(b => b.group === 'renato').map(bill => (
+                {currentMonthBills.filter(b => b.group === 'renato').map(bill => (
                   <div key={bill.id} className="p-3 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
