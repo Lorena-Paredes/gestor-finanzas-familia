@@ -54,12 +54,14 @@ import {
   Calendar,
   ChevronDown,
   Cloud,
-  CloudUpload
+  CloudUpload,
+  LogOut
 } from 'lucide-react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
 
-// --- FIREBASE FIRESTORE REAL-TIME DB CONFIGURATION ---
+// --- FIREBASE FIRESTORE & AUTH CONFIGURATION ---
 const firebaseConfig = {
   apiKey: "AIzaSyChdYn6sGC8fJzeLXMGZftfcfSIrQD_cRo",
   authDomain: "finanzas-familia-lorena.firebaseapp.com",
@@ -72,6 +74,9 @@ const firebaseConfig = {
 
 const firebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(firebaseApp);
+export const auth = getAuth(firebaseApp);
+export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 // --- FORMATTERS & UTILS ---
 const formatARS = (amount: number | null | undefined): string => {
@@ -448,6 +453,39 @@ const parseSavedSelectedMonth = (saved: string | null): string => {
 };
 
 function MainApp() {
+  // --- FIREBASE AUTHENTICATION STATE & HANDLERS ---
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setIsAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleSignIn = async () => {
+    setAuthError(null);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      console.error('Error signing in with Google:', err);
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setAuthError('No se pudo iniciar sesión con Google. Verificá que las ventanas emergentes estén permitidas y reintentá.');
+      }
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
   // Navigation State
   const [activeTab, setActiveTab] = useState<'dashboard' | 'vencimientos' | 'campo' | 'scanner' | 'mama' | 'renato'>('dashboard');
 
@@ -660,8 +698,13 @@ function MainApp() {
   const isRemoteSyncRef = useRef<boolean>(false);
   const isInitialCloudLoadDoneRef = useRef<boolean>(false);
 
-  // 1. Listen and Subscribe to Firestore in Real-Time for the selected month
+  // 1. Listen and Subscribe to Firestore in Real-Time for the selected month (ONLY FOR AUTHENTICATED USERS)
   useEffect(() => {
+    if (!currentUser) {
+      setCloudSyncStatus('offline');
+      return;
+    }
+
     setCloudSyncStatus('syncing');
     const docRef = doc(db, 'movimientos_financieros', selectedMonth);
 
@@ -699,6 +742,7 @@ function MainApp() {
               shoppingList: shoppingList,
               yieldRates: yieldRates,
               updatedAt: new Date().toISOString(),
+              createdBy: currentUser.email || currentUser.uid,
             };
             await setDoc(docRef, initialSeedData, { merge: true });
             setCloudSyncStatus('synced');
@@ -717,11 +761,11 @@ function MainApp() {
     );
 
     return () => unsubscribe();
-  }, [selectedMonth]);
+  }, [selectedMonth, currentUser]);
 
-  // 2. Debounced Cloud Persistence when user makes modifications
+  // 2. Debounced Cloud Persistence when user makes modifications (ONLY FOR AUTHENTICATED USERS)
   useEffect(() => {
-    if (!isInitialCloudLoadDoneRef.current || isRemoteSyncRef.current) return;
+    if (!currentUser || !isInitialCloudLoadDoneRef.current || isRemoteSyncRef.current) return;
 
     const timer = setTimeout(async () => {
       try {
@@ -739,6 +783,7 @@ function MainApp() {
             shoppingList,
             yieldRates,
             updatedAt: new Date().toISOString(),
+            lastUpdatedBy: currentUser.email || currentUser.uid,
           },
           { merge: true }
         );
@@ -749,9 +794,8 @@ function MainApp() {
         setCloudSyncStatus('offline');
       }
     }, 800);
-
     return () => clearTimeout(timer);
-  }, [bills, transactions, accounts, mamaAccounts, basket, shoppingList, yieldRates, selectedMonth]);
+  }, [bills, transactions, accounts, mamaAccounts, basket, shoppingList, yieldRates, selectedMonth, currentUser]);
 
   // Calculations
   const totalBalance = useMemo(() => {
@@ -1430,6 +1474,91 @@ function MainApp() {
     setShoppingList(prev => prev.filter(item => item.id !== id));
   };
 
+  // --- 1. AUTH LOADING STATE ---
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-xl shadow-emerald-500/20 text-white mb-4 animate-pulse">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <p className="text-sm font-semibold text-slate-300">Cargando Gestor Financiero Familiar...</p>
+        <span className="text-xs text-slate-500 mt-1">Conectando con Firebase...</span>
+      </div>
+    );
+  }
+
+  // --- 2. WELCOME & GOOGLE LOGIN SCREEN (WHEN NOT LOGGED IN) ---
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-4 selection:bg-emerald-500 selection:text-white">
+        <div className="w-full max-w-sm bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-2xl backdrop-blur-xl text-center space-y-6">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-xl shadow-emerald-500/20 text-white font-bold">
+            <Building2 className="w-9 h-9" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h1 className="text-xl font-bold tracking-tight text-white">Gestor Financiero Familiar</h1>
+            <p className="text-xs text-slate-400">
+              Control de vencimientos, campo, mamá y finanzas en tiempo real
+            </p>
+          </div>
+
+          <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-3.5 text-left text-xs space-y-2.5 text-slate-300">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+              <span>Sincronización multi-dispositivo en la nube (Firestore)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" />
+              <span>Semáforo de vencimientos e impuestos del hogar</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+              <span>Módulos de El Campo, Mamá y Renato</span>
+            </div>
+          </div>
+
+          {authError && (
+            <div className="p-3 rounded-xl bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs text-left flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          <button
+            onClick={handleGoogleSignIn}
+            className="w-full py-3 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-sm flex items-center justify-center gap-3 transition-all shadow-lg shadow-white/5 cursor-pointer active:scale-[0.98]"
+          >
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+              />
+            </svg>
+            <span>Iniciar sesión con Google</span>
+          </button>
+
+          <p className="text-[11px] text-slate-500">
+            Acceso seguro autenticado mediante Firebase Authentication
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --- 3. MAIN APPLICATION (AUTHENTICATED) ---
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans pb-28 select-none">
       {/* Hidden Global Document Input */}
@@ -1460,6 +1589,32 @@ function MainApp() {
           </div>
 
           <div className="flex items-center gap-1.5">
+            {/* Authenticated User Badge & Logout Button */}
+            <div className="flex items-center gap-1.5 bg-slate-950/80 border border-slate-800 rounded-lg p-1 pr-1.5">
+              {currentUser.photoURL ? (
+                <img
+                  src={currentUser.photoURL}
+                  alt={currentUser.displayName || 'Usuario'}
+                  className="w-6 h-6 rounded-full object-cover border border-emerald-500/40"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center">
+                  {(currentUser.displayName || currentUser.email || 'U')[0].toUpperCase()}
+                </div>
+              )}
+              <span className="hidden md:inline text-[10px] text-slate-300 font-medium truncate max-w-[100px]">
+                {currentUser.displayName || currentUser.email?.split('@')[0]}
+              </span>
+              <button
+                onClick={handleSignOut}
+                title="Cerrar sesión"
+                className="p-1 rounded hover:bg-rose-950/80 hover:text-rose-300 text-slate-400 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             {!isPWAInstalled && (
               <button
                 onClick={handleInstallPWA}
@@ -1529,7 +1684,7 @@ function MainApp() {
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-emerald-400 font-medium flex items-center gap-1">
-                  <Cloud className="w-3.5 h-3.5 text-emerald-400" /> En línea / Sincronizado en la nube ☁️
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" /> En línea / Sincronizado ☁️
                 </span>
                 {lastCloudSyncTime && (
                   <span className="text-slate-500 font-mono">({lastCloudSyncTime})</span>
