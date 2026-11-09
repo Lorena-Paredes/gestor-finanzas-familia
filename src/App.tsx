@@ -47,7 +47,9 @@ import {
   FileUp,
   ShieldCheck,
   RefreshCw,
-  Coins
+  Coins,
+  Download,
+  Share2
 } from 'lucide-react';
 
 // --- FORMATTERS & UTILS ---
@@ -383,6 +385,58 @@ export default function App() {
   // Shopping item input
   const [newNeedTitle, setNewNeedTitle] = useState('');
   const [newNeedUrgent, setNewNeedUrgent] = useState(false);
+
+  // PWA Install State & Handlers
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isPWAInstalled, setIsPWAInstalled] = useState<boolean>(false);
+  const [isIOS, setIsIOS] = useState<boolean>(false);
+  const [showIOSInstallModal, setShowIOSInstallModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    // Detect standalone mode
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+    setIsPWAInstalled(isStandalone);
+
+    // Detect iOS
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isIOSDevice);
+
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleInstalled = () => {
+      setIsPWAInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        setIsPWAInstalled(true);
+        setDeferredPrompt(null);
+      }
+    } else if (isIOS) {
+      setShowIOSInstallModal(true);
+    } else {
+      setShowIOSInstallModal(true);
+    }
+  };
 
   // -------------------------------------------------------------
   // REAL-TIME DOLAR API FETCH (ENDPOINT GENERAL /v1/dolares)
@@ -1030,7 +1084,18 @@ export default function App() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {!isPWAInstalled && (
+            <button
+              onClick={handleInstallPWA}
+              title="Instalar App en Celular o PC"
+              className="flex items-center gap-1 text-xs font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white px-2.5 py-1.5 rounded-lg transition-all shadow-md shadow-emerald-950/40 cursor-pointer animate-pulse"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span className="hidden xs:inline">Instalar App</span>
+            </button>
+          )}
+
           <button
             onClick={() => globalFileInputRef.current?.click()}
             title="Subir Factura o Captura de Correo"
@@ -2552,6 +2617,13 @@ export default function App() {
       )}
 
       {/* ============================================================== */}
+      {/* MODAL: GUÍA DE INSTALACIÓN PWA (MÓVIL & ESCRITORIO) */}
+      {/* ============================================================== */}
+      {showIOSInstallModal && (
+        <PWAInstallGuideModal onClose={() => setShowIOSInstallModal(false)} />
+      )}
+
+      {/* ============================================================== */}
       {/* FIXED BOTTOM NAVIGATION BAR */}
       {/* ============================================================== */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 px-1 py-1.5 safe-area-pb">
@@ -3110,6 +3182,64 @@ function NewBillModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// MODAL: GUÍA DE INSTALACIÓN PWA (IPHONE / ANDROID / PC)
+// ============================================================================
+function PWAInstallGuideModal({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-5 space-y-4 shadow-2xl relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center shadow-lg shadow-emerald-500/30 text-white font-bold shrink-0">
+            <Building2 className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-white">Instalar en tu Celular</h3>
+            <p className="text-xs text-slate-400">Acceso directo como app nativa</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 bg-slate-950/80 rounded-2xl p-3.5 border border-slate-800/80 text-xs text-slate-300">
+          <div className="space-y-1">
+            <p className="font-bold text-emerald-400 flex items-center gap-1.5">
+              📱 En iPhone / iPad (Safari):
+            </p>
+            <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px] text-slate-300 leading-relaxed">
+              <li>Tocá el botón <strong>Compartir</strong> (<Share2 className="w-3.5 h-3.5 inline text-sky-400" />) en la barra de Safari.</li>
+              <li>Deslizá hacia abajo y tocá <strong>"Agregar al inicio"</strong>.</li>
+              <li>Confirmá tocando <strong>"Agregar"</strong> arriba a la derecha.</li>
+            </ol>
+          </div>
+
+          <div className="space-y-1 pt-2 border-t border-slate-800">
+            <p className="font-bold text-cyan-400 flex items-center gap-1.5">
+              🤖 En Android (Chrome / Brave):
+            </p>
+            <ol className="list-decimal list-inside space-y-1 pl-1 text-[11px] text-slate-300 leading-relaxed">
+              <li>Tocá el menú de opciones (los <strong>3 puntos ⋮</strong>).</li>
+              <li>Elegí <strong>"Instalar aplicación"</strong> o <strong>"Agregar a pantalla principal"</strong>.</li>
+            </ol>
+          </div>
+        </div>
+
+        <button
+          onClick={onClose}
+          className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition-colors cursor-pointer"
+        >
+          ¡Listo, entendido!
+        </button>
       </div>
     </div>
   );

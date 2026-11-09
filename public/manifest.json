@@ -1,0 +1,19 @@
+{
+  "short_name": "Finanzas",
+  "name": "Gestor Finanzas Familia",
+  "description": "Contador personal, optimizador de presupuesto familiar, vencimientos de servicios e impuestos, finanzas de mamá, escáner de tickets y control de gastos de Renato.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "scope": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "display": "standalone",
+  "orientation": "portrait"
+}

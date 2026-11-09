@@ -1,0 +1,140 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="45%" stop-color="#0f766e" />
+      <stop offset="80%" stop-color="#1e1b4b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+
+    <!-- Shield Glow -->
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981" />
+      <stop offset="50%" stop-color="#06b6d4" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+
+    <!-- Inner Shield Gradient -->
+    <linearGradient id="innerShield" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#022c22" stop-opacity="0.95" />
+    </linearGradient>
+
+    <!-- Gold Accent for Dollar/Balance -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fef08a" />
+      <stop offset="50%" stop-color="#eab308" />
+      <stop offset="100%" stop-color="#ca8a04" />
+    </linearGradient>
+
+    <!-- Checkmark Gradient -->
+    <linearGradient id="checkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399" />
+      <stop offset="100%" stop-color="#10b981" />
+    </linearGradient>
+
+    <!-- Drop Shadows -->
+    <filter id="shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45" />
+    </filter>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Canvas with squircle corners (Maskable friendly) -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+
+  <!-- Subtle Ambient Glow Rings -->
+  <circle cx="256" cy="240" r="180" fill="none" stroke="#10b981" stroke-opacity="0.12" stroke-width="2" />
+  <circle cx="256" cy="240" r="210" fill="none" stroke="#06b6d4" stroke-opacity="0.08" stroke-width="1.5" stroke-dasharray="8 8" />
+
+  <!-- Central Shield / Financial Vault Body (Safe Zone: 80% circle) -->
+  <g filter="url(#shadow)">
+    <!-- Outer Shield Border -->
+    <path d="M 256 90 
+             C 340 90, 396 114, 404 128
+             C 404 250, 350 350, 256 414
+             C 162 350, 108 250, 108 128
+             C 116 114, 172 90, 256 90 Z" 
+          fill="url(#innerShield)" 
+          stroke="url(#shieldGrad)" 
+          stroke-width="9" 
+          stroke-linejoin="round" />
+
+    <!-- Inner Shield Accent Line -->
+    <path d="M 256 114 
+             C 328 114, 372 134, 380 144
+             C 380 244, 334 330, 256 386
+             C 178 330, 132 244, 132 144
+             C 140 134, 184 114, 256 114 Z" 
+          fill="none" 
+          stroke="#10b981" 
+          stroke-opacity="0.3" 
+          stroke-width="2" />
+
+    <!-- Sprout / Growth Leaves (Simbolizando Inversiones y Rendimientos) -->
+    <g transform="translate(0, -6)">
+      <!-- Left Leaf -->
+      <path d="M 256 220 
+               C 220 180, 180 190, 170 230 
+               C 170 270, 220 270, 256 260 Z" 
+            fill="url(#checkGrad)" 
+            opacity="0.9" />
+      
+      <!-- Right Leaf / Coin arc -->
+      <path d="M 256 220 
+               C 292 180, 332 190, 342 230 
+               C 342 270, 292 270, 256 260 Z" 
+            fill="#34d399" 
+            opacity="0.75" />
+    </g>
+
+    <!-- Financial Emblem ($ / Currency Symbol) -->
+    <g id="currencySymbol" transform="translate(256, 235)">
+      <!-- Circle Backing -->
+      <circle cx="0" cy="0" r="54" fill="#0f172a" stroke="url(#goldGrad)" stroke-width="5" filter="url(#glow)" />
+      
+      <!-- Dollar Sign ($) -->
+      <text x="0" y="20" 
+            font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+            font-size="62" 
+            font-weight="900" 
+            fill="url(#goldGrad)" 
+            text-anchor="middle"
+            letter-spacing="-1">
+        $
+      </text>
+    </g>
+
+    <!-- Dynamic Growth Trend Bar / Sparkline -->
+    <path d="M 175 320 L 220 295 L 255 315 L 335 250" 
+          fill="none" 
+          stroke="#38bdf8" 
+          stroke-width="5.5" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+
+    <!-- Trend Arrow Head -->
+    <path d="M 315 250 L 335 250 L 335 270" 
+          fill="none" 
+          stroke="#38bdf8" 
+          stroke-width="5.5" 
+          stroke-linecap="round" 
+          stroke-linejoin="round" />
+
+    <!-- Approved / Checkmark Badge at bottom center of the shield -->
+    <g transform="translate(256, 365)">
+      <circle cx="0" cy="0" r="22" fill="#10b981" stroke="#0f172a" stroke-width="4" filter="url(#glow)" />
+      <path d="M -8 -1 L -2 6 L 9 -5" 
+            fill="none" 
+            stroke="#ffffff" 
+            stroke-width="3.5" 
+            stroke-linecap="round" 
+            stroke-linejoin="round" />
+    </g>
+  </g>
+</svg>
