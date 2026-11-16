@@ -40,6 +40,7 @@ import {
   YieldRates,
 } from '../types/finance';
 import { formatARS, formatDate, formatUSD, safeNumber } from '../utils/formatters';
+import { analyzeDocumentWithGemini } from '../services/geminiService';
 
 /* ========================================================================== */
 /* 1. MOVEMENT MODAL (EXPLICIT INGRESO + vs EGRESO -)                         */
@@ -391,19 +392,10 @@ export function SmartScannerModal({
     setIsAnalyzing(true);
     setErrorMsg(null);
     try {
-      const response = await fetch('/api/gemini/analyze-document', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...payload,
-          contextHint,
-        }),
+      const parsed = await analyzeDocumentWithGemini({
+        ...payload,
+        contextHint,
       });
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json?.error || 'No se pudo analizar el documento.');
-      }
-      const parsed: GeminiExtractedData = json.data;
       setResult(parsed);
 
       if (parsed.ownership === 'maria_ester') {
